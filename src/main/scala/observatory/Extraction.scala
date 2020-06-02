@@ -21,17 +21,16 @@ object Extraction extends ExtractionInterface {
     Temperature)] = {
     val stationsSource = Source.fromInputStream(getClass.getResourceAsStream(stationsFile), "utf-8")
     val tempSource = Source.fromInputStream(getClass.getResourceAsStream(temperaturesFile), "utf-8")
-    using(stationsSource, tempSource) {
-      val stationLocation = mapStationsLocations(stationsSource)
-      for {
-        line <- tempSource.getLines()
-        splitted = line.split(",")
-        location = stationLocation.get(Identifier(splitted(0), splitted(1)))
-        month = splitted(2).toInt
-        day = splitted(3).toInt
-        if location.nonEmpty
-      } yield (LocalDate.of(year, month, day), location.get, fahrenheitToCelcius(splitted(4).toDouble))
-    }.toIterable
+    val stationLocation = mapStationsLocations(stationsSource)
+    val r = for {
+      line <- tempSource.getLines()
+      splitted = line.split(",")
+      location = stationLocation.get(Identifier(splitted(0), splitted(1)))
+      month = splitted(2).toInt
+      day = splitted(3).toInt
+      if location.nonEmpty
+    } yield (LocalDate.of(year, month, day), location.get, fahrenheitToCelcius(splitted(4).toDouble))
+    r.toIterable
   }
   
   private def mapStationsLocations(stationsSource: BufferedSource): Map[Identifier, Location] = {
@@ -42,16 +41,6 @@ object Extraction extends ExtractionInterface {
   
   private def fahrenheitToCelcius(fahrenheit: Double) = {
     (fahrenheit - 32.0) * 5 / 9
-  }
-  
-  private def using[A <: {
-    def close(): Unit
-  }, B](resources: A*)(block: => B) = {
-    try {
-      block
-    } finally {
-      resources.foreach(_.close())
-    }
   }
   
   /**

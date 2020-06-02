@@ -1,12 +1,19 @@
 package observatory
 
+import scala.math.round
+
 /**
   * Introduced in Week 1. Represents a location on the globe.
   *
   * @param lat Degrees of latitude, -90 ≤ lat ≤ 90
   * @param lon Degrees of longitude, -180 ≤ lon ≤ 180
   */
-case class Location(lat: Double, lon: Double)
+case class Location(lat: Double, lon: Double) {
+  def isAntipode(other: Location): Boolean = {
+    val antipode = Location(-lat, 180 - Math.abs(lon))
+    antipode == other
+  }
+}
 
 /**
   * Introduced in Week 3. Represents a tiled web map tile.
@@ -43,7 +50,15 @@ case class CellPoint(x: Double, y: Double)
   * @param green Level of green, 0 ≤ green ≤ 255
   * @param blue  Level of blue, 0 ≤ blue ≤ 255
   */
-case class Color(red: Int, green: Int, blue: Int)
+case class Color(red: Int, green: Int, blue: Int) {
+  def +(other: Color): Color = {
+    Color(red + other.red, green + other.green, blue + other.blue)
+  }
+  
+  def *(multiplicator: Double): Color = {
+    Color(round(red * multiplicator).toInt, round(green * multiplicator).toInt, round(blue * multiplicator).toInt)
+  }
+}
 
 /**
   * Station identifier
@@ -52,4 +67,3 @@ case class Color(red: Int, green: Int, blue: Int)
   * @param WBAN
   */
 case class Identifier(STN: String, WBAN: String)
-
