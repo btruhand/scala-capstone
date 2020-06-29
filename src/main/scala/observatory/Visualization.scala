@@ -2,8 +2,6 @@ package observatory
 
 import com.sksamuel.scrimage.{Image, Pixel}
 
-import scala.math._
-
 /**
  * 2nd milestone: basic visualization
  */
@@ -32,8 +30,8 @@ object Visualization extends VisualizationInterface {
     width: Int, height: Int, alpha: Int) = {
     val locationTemperatures = locations.par.map(predictTemperature(temperatures, _))
     val interpolatedColors = locationTemperatures.map(interpolateColor(colors, _))
-    val interpolatedPixels = interpolatedColors.map(c => Pixel.apply(c.red, c.green, c.blue, alpha)).toArray
-    Image.apply(width, height, interpolatedPixels)
+    val interpolatedPixels = interpolatedColors.map(c => Pixel(c.red, c.green, c.blue, alpha)).toArray
+    Image(width, height, interpolatedPixels)
   }
   
   /**
@@ -75,31 +73,28 @@ object Visualization extends VisualizationInterface {
    * @return The predicted temperature at `location`
    */
   def predictTemperature(temperatures: Iterable[(Location, Temperature)], location: Location): Temperature = {
-    val distancesAndTemps = temperatures.par.map(v => (greatCircleDistance(v._1, location), v._2))
-    val sameLocation = distancesAndTemps.find(_._1 < thresholdDistance)
-    if (sameLocation.isDefined) sameLocation.get._2
-    else {
-      val inverseDistanceWeighting: (Distance, Temperature) = distancesAndTemps.foldLeft((0.0, 0.0))(
-        (acc, distanceAndTemp) => {
-          //          println("distanceAndTemp", distanceAndTemp)
-          val inverseDistance = 1 / pow(distanceAndTemp._1, p)
-          (acc._1 + inverseDistance, acc._2 + inverseDistance * distanceAndTemp._2)
-        })
-      inverseDistanceWeighting._2 / inverseDistanceWeighting._1
-    }
+    val inverseDistanceWeighting = temperatures.toParArray.aggregate(InverseDistanceWeight(0, 0, false))(
+      (w, v) => {
+        val distance = greatCircleDistance(v._1, location)
+        if (distance < thresholdDistance) InverseDistanceWeight(0, v._2, true)
+        else {
+          val inverseDistance = 1 / math.pow(distance, p)
+          w + ((inverseDistance, inverseDistance * v._2))
+        }
+      }, _ + _)
+    
+    inverseDistanceWeighting.weight
   }
   
   def greatCircleDistance(loc1: Location, loc2: Location): Distance = {
     if (loc1 == loc2) 0
-    else if (loc1.isAntipode(loc2)) r * Pi
+    else if (loc1.isAntipode(loc2)) r * math.Pi
     else {
-      val loc1Lat = toRadians(loc1.lat)
-      val loc1Lon = toRadians(loc1.lon)
-      val loc2Lat = toRadians(loc2.lat)
-      val loc2Lon = toRadians(loc2.lon)
-      val a = sin(loc1Lat) * sin(loc2Lat)
-      val b = cos(loc1Lat) * cos(loc2Lat) * cos(abs(loc1Lon - loc2Lon))
-      val delta = acos(a + b)
+      val cosLoc1Lat = math.sqrt(1 - loc1.sinLatRad * loc1.sinLatRad)
+      val cosLoc2Lat = math.sqrt(1 - loc2.sinLatRad * loc2.sinLatRad)
+      val a = loc1.sinLatRad * loc2.sinLatRad
+      val b = cosLoc1Lat * cosLoc2Lat * math.cos(math.abs(loc1.lonRad - loc2.lonRad))
+      val delta = math.acos(a + b)
       r * delta
     }
   }

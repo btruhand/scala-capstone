@@ -9,8 +9,11 @@ import scala.math.round
  * @param lon Degrees of longitude, -180 ≤ lon ≤ 180
  */
 case class Location(lat: Double, lon: Double) {
+  lazy val sinLatRad = math.sin(math.toRadians(lat))
+  lazy val lonRad = math.toRadians(lon)
+  
   def isAntipode(other: Location): Boolean = {
-    val antipode = Location(-lat, 180 - Math.abs(lon))
+    val antipode = Location(-lat, 180 - math.abs(lon))
     antipode == other
   }
 }
@@ -79,3 +82,24 @@ case class Color(red: Int, green: Int, blue: Int) {
  * @param WBAN
  */
 case class Identifier(STN: String, WBAN: String)
+
+case class InverseDistanceWeight(distance: Distance, temperature: Temperature, tooClose: Boolean) {
+  def +(other: InverseDistanceWeight) = {
+    if (tooClose) this
+    else other match {
+      case InverseDistanceWeight(_, _, true) => other
+      case _                                 => InverseDistanceWeight(distance + other.distance,
+        temperature + other.temperature, false)
+    }
+  }
+  
+  def +(other: (Distance, Temperature)) = {
+    if (tooClose) this
+    else InverseDistanceWeight(distance + other._1, temperature + other._2, false)
+  }
+  
+  def weight = {
+    if (tooClose) temperature
+    else temperature / distance
+  }
+}
